@@ -862,244 +862,436 @@
 
 # ---------- HM算法（中文优先版，修复双色带，自定义保存路径）----------
 
+# import vtk
+# import numpy as np
+# import pyvista as pv
+# import time
+# import matplotlib.pyplot as plt
+# import potpourri3d as pp3d
+# from scipy.spatial.distance import pdist
+# import random
+# import os
+# from matplotlib.font_manager import FontProperties
+
+# # ------------------ 解决matplotlib中文显示 ------------------
+# def get_chinese_font():
+#     font_paths = [
+#         'C:/Windows/Fonts/simhei.ttf',
+#         'C:/Windows/Fonts/msyh.ttc',
+#         'C:/Windows/Fonts/simsun.ttc',
+#     ]
+#     for path in font_paths:
+#         if os.path.exists(path):
+#             return FontProperties(fname=path, size=12)
+#     return None
+
+# chinese_font = get_chinese_font()
+# if chinese_font:
+#     print("已加载中文字体，综合图表将显示中文。")
+#     plt.rcParams['font.sans-serif'] = [chinese_font.get_name()]
+#     plt.rcParams['axes.unicode_minus'] = False
+# else:
+#     print("警告：未找到中文字体文件，综合图表将使用英文。")
+
+# print("=== 三维表面距离计算实验（中文优先版）===")
+
+# # 1. 读取TIN格网
+# print("1. 读取TIN格网数据...")
+# reader = vtk.vtkPolyDataReader()
+# reader.SetFileName(r'C:\Users\吕梓源\Desktop\课程\大三上学期\数据分析程序设计（Python）\sh10.vtk')
+# reader.Update()
+# pd = reader.GetOutput()
+# print(f"成功读取TIN格网，包含 {pd.GetNumberOfPoints()} 个顶点和 {pd.GetNumberOfCells()} 个单元")
+
+# # 2. 地形范围信息
+# print("\n2. 计算地形范围信息...")
+# bounds = [0, 0, 0, 0, 0, 0]
+# pd.GetBounds(bounds)
+# print(f"地形范围:")
+# print(f"  X方向: {bounds[0]:.2f} 到 {bounds[1]:.2f} (范围: {bounds[1]-bounds[0]:.2f})")
+# print(f"  Y方向: {bounds[2]:.2f} 到 {bounds[3]:.2f} (范围: {bounds[3]-bounds[2]:.2f})")
+# print(f"  Z方向: {bounds[4]:.2f} 到 {bounds[5]:.2f} (高程范围: {bounds[5]-bounds[4]:.2f})")
+
+# points = np.array([pd.GetPoint(i) for i in range(pd.GetNumberOfPoints())])
+# N = points.shape[0]
+# print(f"\n总点数: {N}")
+
+# # 3. 欧氏距离
+# print("\n3. 计算欧氏距离矩阵...")
+# start_time = time.time()
+# euclidean_distances = pdist(points, metric='euclidean')
+# euclidean_time = time.time() - start_time
+# print(f"欧氏距离计算完成，耗时: {euclidean_time:.2f}秒")
+# print(f"欧氏距离统计 - 最小值: {np.min(euclidean_distances):.4f}, 最大值: {np.max(euclidean_distances):.4f}, 平均值: {np.mean(euclidean_distances):.4f}")
+
+# # 4. 准备HM方法数据
+# print("\n4. 准备HM方法数据...")
+# pv_mesh = pv.wrap(pd)
+# vertices = pv_mesh.points
+# faces = pv_mesh.faces
+# faces_array = faces.reshape(-1, 4)[:, 1:]
+# print(f"顶点数: {vertices.shape[0]}, 面片数: {faces_array.shape[0]}")
+
+# # 5. 初始化HM求解器
+# print("\n5. 初始化HM距离求解器...")
+# solver = pp3d.MeshHeatMethodDistanceSolver(vertices, faces_array)
+# print("HM求解器初始化完成")
+
+# # 6. 计算表面距离矩阵
+# print(f"\n6. 计算表面距离矩阵，共 {N*(N-1)//2} 对距离...")
+# surface_distances = []
+# start_time = time.time()
+
+# for i in range(N - 1):
+#     distances = solver.compute_distance(i)
+#     for j in range(i + 1, N):
+#         surface_distances.append(distances[j])
+#     if (i + 1) % 10 == 0:
+#         progress = (i + 1) / N * 100
+#         elapsed = time.time() - start_time
+#         estimated = elapsed / (i + 1) * N
+#         print(f"进度: {progress:.1f}% ({i+1}/{N}), 已用: {elapsed:.1f}秒, 剩余: {estimated - elapsed:.1f}秒")
+
+# surface_time = time.time() - start_time
+# surface_distances = np.array(surface_distances)
+# print(f"表面距离计算完成，耗时: {surface_time:.2f}秒")
+# print(f"表面距离统计 - 最小值: {np.min(surface_distances):.4f}, 最大值: {np.max(surface_distances):.4f}, 平均值: {np.mean(surface_distances):.4f}")
+
+# # 7. 距离比值
+# ratio = surface_distances / euclidean_distances
+# print(f"\n距离比值分析 (表面距离/欧氏距离):")
+# print(f"  最小比值: {np.min(ratio):.4f}, 最大比值: {np.max(ratio):.4f}, 平均比值: {np.mean(ratio):.4f}")
+# print(f"地理学含义: 平均比值 {np.mean(ratio):.4f} 表示地形对距离的放大效应，比值越大地形越复杂。")
+
+# # ========== 独立可视化部分 ==========
+# print("\n7. 生成独立可视化图形...")
+# print("注意：PyVista窗口因不支持中文，标题/标签使用英文。")
+
+# # 图1：原始地形网格
+# print("  显示图1：原始地形网格...")
+# plotter1 = pv.Plotter(window_size=[800, 600])
+# plotter1.add_mesh(pv_mesh, color='tan', show_edges=True, label=f'TIN Mesh ({N} points)')
+# plotter1.add_title("Original TIN Mesh")
+# plotter1.show_axes()
+# plotter1.show()
+
+# # 图2：高程分布图（修复双色带）
+# print("  显示图2：高程分布图...")
+# plotter2 = pv.Plotter(window_size=[800, 600])
+# elevation = pv_mesh.points[:, 2]
+# plotter2.add_mesh(pv_mesh, scalars=elevation, cmap='terrain', show_edges=False, show_scalar_bar=False)
+# plotter2.add_scalar_bar("Elevation (m)", title_font_size=10, label_font_size=10)
+# plotter2.add_title("Elevation Distribution")
+# plotter2.show_axes()
+# plotter2.show()
+
+# # 图3：统计结果打印到控制台
+# print("\n  图3：距离统计结果（打印到控制台）:")
+# diff = surface_distances - euclidean_distances
+# print("-" * 50)
+# print("欧氏距离统计:")
+# print(f"  最小值: {np.min(euclidean_distances):10.3f}")
+# print(f"  最大值: {np.max(euclidean_distances):10.3f}")
+# print(f"  平均值: {np.mean(euclidean_distances):10.3f}")
+# print("\n表面距离统计 (HM方法):")
+# print(f"  最小值: {np.min(surface_distances):10.3f}")
+# print(f"  最大值: {np.max(surface_distances):10.3f}")
+# print(f"  平均值: {np.mean(surface_distances):10.3f}")
+# print("\n差异分析:")
+# print(f"  平均差异: {np.mean(diff):10.3f}")
+# print(f"  最大差异: {np.max(diff):10.3f}")
+# print("-" * 50)
+
+# # 图4：地形复杂度可视化
+# print("  显示图4：地形复杂度可视化...")
+# vertex_ratio = np.zeros(N)
+# n_samples = min(5000, len(ratio))
+# sample_indices = random.sample(range(len(ratio)), n_samples)
+
+# def get_pair_from_index(idx, N):
+#     i = 0
+#     total = N - 1
+#     while idx >= total:
+#         idx -= total
+#         total -= 1
+#         i += 1
+#     j = i + 1 + idx
+#     return i, j
+
+# for idx in sample_indices:
+#     i, j = get_pair_from_index(idx, N)
+#     r = ratio[idx]
+#     if r > vertex_ratio[i]:
+#         vertex_ratio[i] = r
+#     if r > vertex_ratio[j]:
+#         vertex_ratio[j] = r
+
+# ratio_mesh = pv_mesh.copy()
+# ratio_mesh.point_data['Distance Ratio'] = vertex_ratio
+# plotter4 = pv.Plotter(window_size=[800, 600])
+# plotter4.add_mesh(ratio_mesh, scalars='Distance Ratio', cmap='coolwarm', show_edges=False,
+#                   clim=[1.0, np.max(vertex_ratio)])
+# plotter4.add_scalar_bar("Surface/Euclidean Ratio")
+# plotter4.add_title("Terrain Complexity (Sampled Ratio)")
+# plotter4.show_axes()
+# plotter4.show()
+
+# # ========== 生成详细统计图表（保存到指定路径） ==========
+# print("\n生成详细统计图表...")
+# # 设置保存路径
+# save_dir = r'C:\Users\吕梓源\Desktop\课程\大三下学期\三维GIS开发\第一次实验'
+# os.makedirs(save_dir, exist_ok=True)  # 自动创建文件夹（如果不存在）
+# save_path = os.path.join(save_dir, 'hm_method_analysis_final.png')
+
+# fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
+
+# ax1.hist(euclidean_distances, bins=50, alpha=0.7, label='欧氏距离', color='blue', density=True)
+# ax1.hist(surface_distances, bins=50, alpha=0.7, label='表面距离', color='red', density=True)
+# ax1.set_xlabel('距离')
+# ax1.set_ylabel('密度')
+# ax1.set_title('距离分布对比（HM方法）')
+# ax1.legend()
+# ax1.grid(True, alpha=0.3)
+
+# ax2.hist(ratio, bins=50, alpha=0.7, color='green', edgecolor='black', density=True)
+# ax2.axvline(np.mean(ratio), color='red', linestyle='--', label=f'平均值: {np.mean(ratio):.3f}')
+# ax2.set_xlabel('表面距离/欧氏距离比值')
+# ax2.set_ylabel('密度')
+# ax2.set_title('距离比值分布')
+# ax2.legend()
+# ax2.grid(True, alpha=0.3)
+
+# sample_step = max(1, len(euclidean_distances) // 5000)
+# sample_idx = np.arange(0, len(euclidean_distances), sample_step)
+# ax3.scatter(euclidean_distances[sample_idx], surface_distances[sample_idx], alpha=0.5, s=1)
+# ax3.plot([0, max(euclidean_distances)], [0, max(euclidean_distances)], 'r--', label='1:1线')
+# ax3.set_xlabel('欧氏距离')
+# ax3.set_ylabel('表面距离')
+# ax3.set_title('欧氏距离 vs 表面距离（采样显示）')
+# ax3.legend()
+# ax3.grid(True, alpha=0.3)
+
+# methods = ['欧氏距离 (pdist)', 'HM表面距离']
+# times = [euclidean_time, surface_time]
+# bars = ax4.bar(methods, times, color=['blue','red'], alpha=0.7)
+# ax4.set_ylabel('计算时间 (秒)')
+# ax4.set_title('计算性能对比')
+# ax4.grid(True, alpha=0.3)
+# for bar, t in zip(bars, times):
+#     ax4.text(bar.get_x() + bar.get_width()/2., t + 0.01, f'{t:.2f}s', ha='center', va='bottom')
+
+# if chinese_font:
+#     for ax_ in [ax1, ax2, ax3, ax4]:
+#         for item in ([ax_.title, ax_.xaxis.label, ax_.yaxis.label] +
+#                      ax_.get_xticklabels() + ax_.get_yticklabels()):
+#             item.set_fontproperties(chinese_font)
+#     for ax_ in [ax1, ax2, ax3]:
+#         leg = ax_.get_legend()
+#         if leg:
+#             for text in leg.get_texts():
+#                 text.set_fontproperties(chinese_font)
+
+# plt.tight_layout()
+# plt.savefig(save_path, dpi=300, bbox_inches='tight')
+# print(f"综合统计图表已保存为: {save_path}")
+# plt.show()
+
+# print(f"\n=== 实验总结 ===")
+# print(f"1. 地形高程范围: {bounds[4]:.2f}m - {bounds[5]:.2f}m")
+# print(f"2. 欧氏距离平均: {np.mean(euclidean_distances):.4f}")
+# print(f"3. 表面距离平均: {np.mean(surface_distances):.4f}")
+# print(f"4. 地形放大效应: {np.mean(ratio):.4f} 倍")
+# print(f"5. 计算效率: 欧氏距离 {euclidean_time:.2f}秒, 表面距离 {surface_time:.2f}秒")
+# print(f"\n实验完成！")
+
+#--------------------#
+
+'''
+一、实验目的
+1.理解测绘对面积的关注
+2.理解曲面面积与平面面积
+3.理解三维表面面积的计算方法
+4.理解三维表面面积与平面面积比值的地理学含义
+二、实验内容
+1.读入sh10.vtk地形格网
+2.计算表面面积
+3.计算平面面积
+'''
+
+#----------DeepSeek-V3.1-Think生成的代码----------#
+
+# # -*- coding: utf-8 -*-
+
+# import vtk
+# import numpy as np
+
+# # ----------------------------- 1. 读入 TIN 格网 -----------------------------
+# print("=" * 60)
+# print("实验：三维表面面积与平面面积计算")
+# print("=" * 60)
+
+# # 注意：sh10.vtk 是 VTK 格式的三角网格，应使用 vtkPolyDataReader
+# # 用户代码中误写为 vtkPLYReader，此处纠正
+# reader = vtk.vtkPolyDataReader()
+# reader.SetFileName(r'C:\Users\吕梓源\Desktop\课程\大三上学期\数据分析程序设计（Python）\sh10.vtk')
+# reader.Update()
+
+# # 获取多数据对象
+# pd = reader.GetOutput()
+# if pd is None:
+#     print("错误：无法读取文件，请检查路径！")
+#     exit(1)
+
+# # 获取三角形单元数量（假设网格全部为三角形）
+# num_cells = pd.GetNumberOfCells()
+# print(f"\n成功读取 TIN 格网：")
+# print(f"  顶点数：{pd.GetNumberOfPoints()}")
+# print(f"  三角形单元数：{num_cells}")
+
+# # ----------------------------- 2. 计算曲面面积与平面面积 -----------------------------
+# surface_area = 0.0      # 三维曲面总面积
+# planar_area = 0.0       # 投影到 XY 平面的总面积（平面面积）
+
+# # 遍历每个三角形单元
+# for i in range(num_cells):
+#     # 获取第 i 个单元的顶点 ID 列表
+#     point_ids = vtk.vtkIdList()
+#     pd.GetCellPoints(i, point_ids)
+    
+#     # 三角形应有 3 个顶点
+#     if point_ids.GetNumberOfIds() != 3:
+#         continue   # 跳过非三角形单元（本例中应该全是三角形）
+    
+#     # 获取三个顶点的三维坐标
+#     p0 = [0.0, 0.0, 0.0]
+#     p1 = [0.0, 0.0, 0.0]
+#     p2 = [0.0, 0.0, 0.0]
+#     pd.GetPoint(point_ids.GetId(0), p0)
+#     pd.GetPoint(point_ids.GetId(1), p1)
+#     pd.GetPoint(point_ids.GetId(2), p2)
+    
+#     # 转换为 numpy 数组便于计算
+#     v0 = np.array(p0)
+#     v1 = np.array(p1)
+#     v2 = np.array(p2)
+    
+#     # ---- 计算三维曲面面积（三角形面积，海伦公式或叉积法） ----
+#     # 方法：使用两条边的叉积的模长的一半
+#     edge1 = v1 - v0
+#     edge2 = v2 - v0
+#     cross = np.cross(edge1, edge2)
+#     tri_area_3d = 0.5 * np.linalg.norm(cross)
+#     surface_area += tri_area_3d
+    
+#     # ---- 计算平面面积（投影到 XY 平面的面积） ----
+#     # 投影到 XY 平面：忽略 Z 坐标，计算二维三角形面积
+#     # 顶点投影坐标 (x, y)
+#     proj0 = v0[:2]
+#     proj1 = v1[:2]
+#     proj2 = v2[:2]
+#     # 二维叉积（实际上是有向面积的2倍）
+#     edge1_2d = proj1 - proj0
+#     edge2_2d = proj2 - proj0
+#     cross_2d = np.cross(edge1_2d, edge2_2d)   # 对于二维向量，cross 返回标量
+#     tri_area_2d = 0.5 * abs(cross_2d)
+#     planar_area += tri_area_2d
+
+# # ----------------------------- 3. 输出结果与地理学含义 -----------------------------
+# print("\n" + "=" * 60)
+# print("计算结果：")
+# print(f"  三维曲面总面积（表面面积）：{surface_area:.2f} 平方米")
+# print(f"  平面投影总面积（平面面积）：{planar_area:.2f} 平方米")
+# if planar_area > 0:
+#     ratio = surface_area / planar_area
+#     print(f"  曲面面积 / 平面面积 比值：{ratio:.4f}")
+# else:
+#     ratio = float('inf')
+#     print("  平面面积为0，无法计算比值")
+
+# print("\n地理学含义分析：")
+# print("  曲面面积反映了地表的真实起伏程度，包含所有坡面细节；")
+# print("  平面面积是地表在水平面上的投影，忽略高程变化。")
+# print("  曲面面积与平面面积的比值（>1）量化了地形的崎岖程度：")
+# print("    - 比值越接近1，说明地形越平坦（如平原、盆地）；")
+# print("    - 比值越大，说明地形越复杂、切割越强烈（如山地、丘陵）。")
+# print("  该比值常用于水土流失评估、地质灾害风险分区、地表粗糙度建模等。")
+# print(f"  本实验区域的地形放大效应为 {ratio:.4f} 倍，表示实际地表面积比投影面积大了 {(ratio-1)*100:.2f}%。")
+# print("=" * 60)
+
+#----------TRAE-Kimi-K2-0905生成的代码----------#
+
 import vtk
-import numpy as np
-import pyvista as pv
-import time
-import matplotlib.pyplot as plt
-import potpourri3d as pp3d
-from scipy.spatial.distance import pdist
-import random
-import os
-from matplotlib.font_manager import FontProperties
+import math
 
-# ------------------ 解决matplotlib中文显示 ------------------
-def get_chinese_font():
-    font_paths = [
-        'C:/Windows/Fonts/simhei.ttf',
-        'C:/Windows/Fonts/msyh.ttc',
-        'C:/Windows/Fonts/simsun.ttc',
-    ]
-    for path in font_paths:
-        if os.path.exists(path):
-            return FontProperties(fname=path, size=12)
-    return None
+print("="*60)
+print("三维表面面积与平面面积计算")
+print("="*60)
 
-chinese_font = get_chinese_font()
-if chinese_font:
-    print("已加载中文字体，综合图表将显示中文。")
-    plt.rcParams['font.sans-serif'] = [chinese_font.get_name()]
-    plt.rcParams['axes.unicode_minus'] = False
-else:
-    print("警告：未找到中文字体文件，综合图表将使用英文。")
-
-print("=== 三维表面距离计算实验（中文优先版）===")
-
-# 1. 读取TIN格网
-print("1. 读取TIN格网数据...")
-reader = vtk.vtkPolyDataReader()
+# 读入TIN格网
+reader = vtk.vtkGenericDataObjectReader()
 reader.SetFileName(r'C:\Users\吕梓源\Desktop\课程\大三上学期\数据分析程序设计（Python）\sh10.vtk')
 reader.Update()
 pd = reader.GetOutput()
-print(f"成功读取TIN格网，包含 {pd.GetNumberOfPoints()} 个顶点和 {pd.GetNumberOfCells()} 个单元")
+N = pd.GetNumberOfCells()
+print(f"读入成功，三角形单元数量: {N}")
 
-# 2. 地形范围信息
-print("\n2. 计算地形范围信息...")
-bounds = [0, 0, 0, 0, 0, 0]
-pd.GetBounds(bounds)
-print(f"地形范围:")
-print(f"  X方向: {bounds[0]:.2f} 到 {bounds[1]:.2f} (范围: {bounds[1]-bounds[0]:.2f})")
-print(f"  Y方向: {bounds[2]:.2f} 到 {bounds[3]:.2f} (范围: {bounds[3]-bounds[2]:.2f})")
-print(f"  Z方向: {bounds[4]:.2f} 到 {bounds[5]:.2f} (高程范围: {bounds[5]-bounds[4]:.2f})")
+surface_area_total = 0.0
+plane_area_total = 0.0
 
-points = np.array([pd.GetPoint(i) for i in range(pd.GetNumberOfPoints())])
-N = points.shape[0]
-print(f"\n总点数: {N}")
+for i in range(N):
+    pis = vtk.vtkIdList()
+    pd.GetCellPoints(i, pis)
+    pid0, pid1, pid2 = pis.GetId(0), pis.GetId(1), pis.GetId(2)
+    
+    p0 = [0.0, 0.0, 0.0]
+    p1 = [0.0, 0.0, 0.0]
+    p2 = [0.0, 0.0, 0.0]
+    pd.GetPoint(pid0, p0)
+    pd.GetPoint(pid1, p1)
+    pd.GetPoint(pid2, p2)
+    
+    # 三维表面面积（叉积法）
+    ab = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]]
+    ac = [p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]]
+    cross = [
+        ab[1]*ac[2] - ab[2]*ac[1],
+        ab[2]*ac[0] - ab[0]*ac[2],
+        ab[0]*ac[1] - ab[1]*ac[0]
+    ]
+    cross_mag = math.sqrt(cross[0]**2 + cross[1]**2 + cross[2]**2)
+    surface_area_total += cross_mag / 2.0
+    
+    # 二维平面面积（投影到XY平面，海伦公式）
+    a2 = math.sqrt((p1[0]-p0[0])**2 + (p1[1]-p0[1])**2)
+    b2 = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+    c2 = math.sqrt((p0[0]-p2[0])**2 + (p0[1]-p2[1])**2)
+    s = (a2 + b2 + c2) / 2.0
+    plane_area_total += math.sqrt(max(0, s*(s-a2)*(s-b2)*(s-c2)))
+    
+    if (i+1) % 100 == 0:
+        print(f"  计算进度: {i+1}/{N} ({(i+1)/N*100:.1f}%)")
 
-# 3. 欧氏距离
-print("\n3. 计算欧氏距离矩阵...")
-start_time = time.time()
-euclidean_distances = pdist(points, metric='euclidean')
-euclidean_time = time.time() - start_time
-print(f"欧氏距离计算完成，耗时: {euclidean_time:.2f}秒")
-print(f"欧氏距离统计 - 最小值: {np.min(euclidean_distances):.4f}, 最大值: {np.max(euclidean_distances):.4f}, 平均值: {np.mean(euclidean_distances):.4f}")
+# 输出结果
+area_ratio = surface_area_total / plane_area_total if plane_area_total > 0 else 0
+print(f"\n计算结果:")
+print(f"  三维表面面积: {surface_area_total:.2f} 平方米")
+print(f"  二维平面面积: {plane_area_total:.2f} 平方米")
+print(f"  面积比值: {area_ratio:.4f}")
 
-# 4. 准备HM方法数据
-print("\n4. 准备HM方法数据...")
-pv_mesh = pv.wrap(pd)
-vertices = pv_mesh.points
-faces = pv_mesh.faces
-faces_array = faces.reshape(-1, 4)[:, 1:]
-print(f"顶点数: {vertices.shape[0]}, 面片数: {faces_array.shape[0]}")
+# 精简的地理含义（约100字，分点）
+print("\n地理含义:")
+print(f"  1. 比值 {area_ratio:.4f} 表示实际地表面积是投影面积的倍数，恒≥1。")
+print("  2. 比值越大，地形越崎岖（山地>丘陵>平原）。")
+print("  3. 应用：水土流失评估、生态容量估算、道路选线等需使用真实面积。")
+if area_ratio < 1.01:
+    print("  4. 本区地形平坦（比值≈1）。")
+elif area_ratio < 1.1:
+    print("  4. 本区地形轻微起伏。")
+elif area_ratio < 1.3:
+    print("  4. 本区地形中等起伏。")
+else:
+    print("  4. 本区地形复杂起伏。")
 
-# 5. 初始化HM求解器
-print("\n5. 初始化HM距离求解器...")
-solver = pp3d.MeshHeatMethodDistanceSolver(vertices, faces_array)
-print("HM求解器初始化完成")
-
-# 6. 计算表面距离矩阵
-print(f"\n6. 计算表面距离矩阵，共 {N*(N-1)//2} 对距离...")
-surface_distances = []
-start_time = time.time()
-
-for i in range(N - 1):
-    distances = solver.compute_distance(i)
-    for j in range(i + 1, N):
-        surface_distances.append(distances[j])
-    if (i + 1) % 10 == 0:
-        progress = (i + 1) / N * 100
-        elapsed = time.time() - start_time
-        estimated = elapsed / (i + 1) * N
-        print(f"进度: {progress:.1f}% ({i+1}/{N}), 已用: {elapsed:.1f}秒, 剩余: {estimated - elapsed:.1f}秒")
-
-surface_time = time.time() - start_time
-surface_distances = np.array(surface_distances)
-print(f"表面距离计算完成，耗时: {surface_time:.2f}秒")
-print(f"表面距离统计 - 最小值: {np.min(surface_distances):.4f}, 最大值: {np.max(surface_distances):.4f}, 平均值: {np.mean(surface_distances):.4f}")
-
-# 7. 距离比值
-ratio = surface_distances / euclidean_distances
-print(f"\n距离比值分析 (表面距离/欧氏距离):")
-print(f"  最小比值: {np.min(ratio):.4f}, 最大比值: {np.max(ratio):.4f}, 平均比值: {np.mean(ratio):.4f}")
-print(f"地理学含义: 平均比值 {np.mean(ratio):.4f} 表示地形对距离的放大效应，比值越大地形越复杂。")
-
-# ========== 独立可视化部分 ==========
-print("\n7. 生成独立可视化图形...")
-print("注意：PyVista窗口因不支持中文，标题/标签使用英文。")
-
-# 图1：原始地形网格
-print("  显示图1：原始地形网格...")
-plotter1 = pv.Plotter(window_size=[800, 600])
-plotter1.add_mesh(pv_mesh, color='tan', show_edges=True, label=f'TIN Mesh ({N} points)')
-plotter1.add_title("Original TIN Mesh")
-plotter1.show_axes()
-plotter1.show()
-
-# 图2：高程分布图（修复双色带）
-print("  显示图2：高程分布图...")
-plotter2 = pv.Plotter(window_size=[800, 600])
-elevation = pv_mesh.points[:, 2]
-plotter2.add_mesh(pv_mesh, scalars=elevation, cmap='terrain', show_edges=False, show_scalar_bar=False)
-plotter2.add_scalar_bar("Elevation (m)", title_font_size=10, label_font_size=10)
-plotter2.add_title("Elevation Distribution")
-plotter2.show_axes()
-plotter2.show()
-
-# 图3：统计结果打印到控制台
-print("\n  图3：距离统计结果（打印到控制台）:")
-diff = surface_distances - euclidean_distances
-print("-" * 50)
-print("欧氏距离统计:")
-print(f"  最小值: {np.min(euclidean_distances):10.3f}")
-print(f"  最大值: {np.max(euclidean_distances):10.3f}")
-print(f"  平均值: {np.mean(euclidean_distances):10.3f}")
-print("\n表面距离统计 (HM方法):")
-print(f"  最小值: {np.min(surface_distances):10.3f}")
-print(f"  最大值: {np.max(surface_distances):10.3f}")
-print(f"  平均值: {np.mean(surface_distances):10.3f}")
-print("\n差异分析:")
-print(f"  平均差异: {np.mean(diff):10.3f}")
-print(f"  最大差异: {np.max(diff):10.3f}")
-print("-" * 50)
-
-# 图4：地形复杂度可视化
-print("  显示图4：地形复杂度可视化...")
-vertex_ratio = np.zeros(N)
-n_samples = min(5000, len(ratio))
-sample_indices = random.sample(range(len(ratio)), n_samples)
-
-def get_pair_from_index(idx, N):
-    i = 0
-    total = N - 1
-    while idx >= total:
-        idx -= total
-        total -= 1
-        i += 1
-    j = i + 1 + idx
-    return i, j
-
-for idx in sample_indices:
-    i, j = get_pair_from_index(idx, N)
-    r = ratio[idx]
-    if r > vertex_ratio[i]:
-        vertex_ratio[i] = r
-    if r > vertex_ratio[j]:
-        vertex_ratio[j] = r
-
-ratio_mesh = pv_mesh.copy()
-ratio_mesh.point_data['Distance Ratio'] = vertex_ratio
-plotter4 = pv.Plotter(window_size=[800, 600])
-plotter4.add_mesh(ratio_mesh, scalars='Distance Ratio', cmap='coolwarm', show_edges=False,
-                  clim=[1.0, np.max(vertex_ratio)])
-plotter4.add_scalar_bar("Surface/Euclidean Ratio")
-plotter4.add_title("Terrain Complexity (Sampled Ratio)")
-plotter4.show_axes()
-plotter4.show()
-
-# ========== 生成详细统计图表（保存到指定路径） ==========
-print("\n生成详细统计图表...")
-# 设置保存路径
-save_dir = r'C:\Users\吕梓源\Desktop\课程\大三下学期\三维GIS开发\第一次实验'
-os.makedirs(save_dir, exist_ok=True)  # 自动创建文件夹（如果不存在）
-save_path = os.path.join(save_dir, 'hm_method_analysis_final.png')
-
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
-
-ax1.hist(euclidean_distances, bins=50, alpha=0.7, label='欧氏距离', color='blue', density=True)
-ax1.hist(surface_distances, bins=50, alpha=0.7, label='表面距离', color='red', density=True)
-ax1.set_xlabel('距离')
-ax1.set_ylabel('密度')
-ax1.set_title('距离分布对比（HM方法）')
-ax1.legend()
-ax1.grid(True, alpha=0.3)
-
-ax2.hist(ratio, bins=50, alpha=0.7, color='green', edgecolor='black', density=True)
-ax2.axvline(np.mean(ratio), color='red', linestyle='--', label=f'平均值: {np.mean(ratio):.3f}')
-ax2.set_xlabel('表面距离/欧氏距离比值')
-ax2.set_ylabel('密度')
-ax2.set_title('距离比值分布')
-ax2.legend()
-ax2.grid(True, alpha=0.3)
-
-sample_step = max(1, len(euclidean_distances) // 5000)
-sample_idx = np.arange(0, len(euclidean_distances), sample_step)
-ax3.scatter(euclidean_distances[sample_idx], surface_distances[sample_idx], alpha=0.5, s=1)
-ax3.plot([0, max(euclidean_distances)], [0, max(euclidean_distances)], 'r--', label='1:1线')
-ax3.set_xlabel('欧氏距离')
-ax3.set_ylabel('表面距离')
-ax3.set_title('欧氏距离 vs 表面距离（采样显示）')
-ax3.legend()
-ax3.grid(True, alpha=0.3)
-
-methods = ['欧氏距离 (pdist)', 'HM表面距离']
-times = [euclidean_time, surface_time]
-bars = ax4.bar(methods, times, color=['blue','red'], alpha=0.7)
-ax4.set_ylabel('计算时间 (秒)')
-ax4.set_title('计算性能对比')
-ax4.grid(True, alpha=0.3)
-for bar, t in zip(bars, times):
-    ax4.text(bar.get_x() + bar.get_width()/2., t + 0.01, f'{t:.2f}s', ha='center', va='bottom')
-
-if chinese_font:
-    for ax_ in [ax1, ax2, ax3, ax4]:
-        for item in ([ax_.title, ax_.xaxis.label, ax_.yaxis.label] +
-                     ax_.get_xticklabels() + ax_.get_yticklabels()):
-            item.set_fontproperties(chinese_font)
-    for ax_ in [ax1, ax2, ax3]:
-        leg = ax_.get_legend()
-        if leg:
-            for text in leg.get_texts():
-                text.set_fontproperties(chinese_font)
-
-plt.tight_layout()
-plt.savefig(save_path, dpi=300, bbox_inches='tight')
-print(f"综合统计图表已保存为: {save_path}")
-plt.show()
-
-print(f"\n=== 实验总结 ===")
-print(f"1. 地形高程范围: {bounds[4]:.2f}m - {bounds[5]:.2f}m")
-print(f"2. 欧氏距离平均: {np.mean(euclidean_distances):.4f}")
-print(f"3. 表面距离平均: {np.mean(surface_distances):.4f}")
-print(f"4. 地形放大效应: {np.mean(ratio):.4f} 倍")
-print(f"5. 计算效率: 欧氏距离 {euclidean_time:.2f}秒, 表面距离 {surface_time:.2f}秒")
-print(f"\n实验完成！")
+print("="*60)
+print("计算完成")
+print("="*60)
